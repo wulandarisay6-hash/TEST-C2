@@ -1,5 +1,4 @@
 const admin = require("firebase-admin");
-
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_DEV_CHAT_ID = process.env.TELEGRAM_DEV_CHAT_ID;
 const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
@@ -8,8 +7,7 @@ let _app;
 function getApp() {
   if (_app) return _app;
   const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  const credential = admin.credential.cert(sa);
-  _app = admin.apps.length ? admin.app() : admin.initializeApp({ credential });
+  _app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa) });
   return _app;
 }
 function getDb() { getApp(); return admin.firestore(); }

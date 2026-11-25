@@ -67,7 +67,7 @@ function renderDashboard(user, data) {
   });
 }
 
-// SUBMIT FORM VIP (Upload gambar via Web -> API -> Telegram & OCR)
+// SUBMIT FORM VIP (Upload gambar via API, biar OCR jalan)
 $("form-qris").addEventListener("submit", async e => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -79,11 +79,11 @@ $("form-qris").addEventListener("submit", async e => {
   if (!file || file.size === 0) { showToast("Upload bukti transfer!", "error"); return; }
 
   const originalText = submitBtn.textContent;
-  submitBtn.textContent = "MEMPROSES BUKTI (OCR)...";
+  submitBtn.textContent = "MEMPROSES BUKTI...";
   submitBtn.disabled = true;
   
   try {
-    // 1. Bikin dokumen transaksi di Firestore
+    // 1. Simpan transaksi ke Firestore
     const ref = await addDoc(collection(db, "transactions"), {
       uid: auth_user.uid, appuid: auth_user.uid, username: $("user-name").textContent,
       senderName: fd.get("sender_name").trim(), transactionDate: fd.get("transaction_date"),
@@ -91,26 +91,21 @@ $("form-qris").addEventListener("submit", async e => {
       status: "pending", createdAt: serverTimestamp()
     });
 
-    // 2. Upload gambar ke ImgBB dulu biar dapet direct URL (buat di-OCR & Telegram)
-    const formData = new URLSearchParams();
+    // 2. Upload gambar ke ImgBB via API internal Vercel
     const base64Img = await new Promise(r => {
       const reader = new FileReader();
       reader.onload = () => r(reader.result.split(',')[1]);
       reader.readAsDataURL(file);
     });
+    const formData = new URLSearchParams();
     formData.append("image", base64Img);
     
-    // Upload ke ImgBB lewat API Vercel biar API Key ImgBB ga bocor di frontend
-    // *Kita tembak pake endpoint verify atau buat endpoint baru, pake endpoint notify aja
-    const imgbbRes = await fetch(`/api/upload-imgbb`, { // Gua bikinin function khusus buat ini di bawah
-      method: "POST", body: formData
-    });
+    const imgbbRes = await fetch(`/api/upload-imgbb`, { method: "POST", body: formData });
     const imgbbData = await imgbbRes.json();
-    
-    if (!imgbbData.url) throw new Error("Gagal upload gambar");
+    if (!imgbbData.url) throw new Error("Gagal upload gambar ke ImgBB");
     const photoUrl = imgbbData.url;
 
-    // 3. Tembak API Notify (yang udah berisi logic OCR Auto-ACC)
+    // 3. Tembak API Notify (Otomatis di-OCR)
     await fetch("/api/notify-telegram", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -118,11 +113,11 @@ $("form-qris").addEventListener("submit", async e => {
     });
 
     closeQRIS();
-    showToast("Konfirmasi terkirim. Tunggu proses Auto-ACC.", "success");
+    showToast("Konfirmasi terkirim. Cek Telegram bot.", "success");
     e.target.reset();
   } catch (err) {
     console.error(err);
-    showToast("Gagal kirim: " + err.message, "error");
+    showToast("Gagal: " + err.message, "error");
   } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;

@@ -26,12 +26,11 @@ async function sendTelegramPhoto(payload) {
   return res.json();
 }
 
-// Fungsi OCR pakai OCR.space
 async function processOCR(fileUrl) {
   const formData = new URLSearchParams();
   formData.append("apikey", OCR_API_KEY);
   formData.append("url", fileUrl);
-  formData.append("language", "eng"); // OCR.space standar pake english, akurasi angka lumayan
+  formData.append("language", "eng");
   
   const res = await fetch("https://api.ocr.space/parse/image", {
     method: "POST", body: formData
@@ -57,21 +56,17 @@ module.exports = async (req, res) => {
     const tx = txSnap.data();
 
     let isAutoAccepted = false;
-    let ocrText = "";
     let reason = "No Photo URL provided";
 
-    // Logika Auto-ACC OCR
     if (photoUrl && OCR_API_KEY) {
       try {
-        ocrText = await processOCR(photoUrl);
-        // Cek apakah Tanggal & Ref cocok di dalam teks OCR
+        const ocrText = await processOCR(photoUrl);
         const cleanRef = (tx.transactionRef || "").toLowerCase().replace(/\s/g, "");
-        const cleanDate = (tx.transactionDate || "").replace(/-/g, "/"); // form date: 2026-11-26, OCR biasanya 26/11/2026
+        const cleanDate = (tx.transactionDate || "").replace(/-/g, "/");
         
-        // Karena format tanggal di struk beda-beda (DD/MM/YYYY atau YYYY-MM-DD), cek keduanya
         const dateParts = cleanDate.split("/");
-        const dateStr1 = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`; // 26/11/2026
-        const dateStr2 = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`; // 11/26/2026
+        const dateStr1 = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+        const dateStr2 = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
         
         const refMatch = ocrText.includes(cleanRef);
         const dateMatch = ocrText.includes(dateStr1) || ocrText.includes(dateStr2);
@@ -86,27 +81,25 @@ module.exports = async (req, res) => {
         reason = "Butuh Manual: OCR Error (" + err.message + ")";
       }
     } else {
-      reason = "Butuh Manual: Tanpa foto bukti / API OCR kosong";
+      reason = "Butuh Manual: Tanpa foto / API OCR kosong";
     }
 
     const baseMsg = `🔔 *TRANSAKSI BARU*\n\n👤 User: \`${tx.username || "-"}\`\n🆔 appuid: \`${tx.appuid || tx.uid || "-"}\`\n💸 Nama: ${tx.senderName || "-"}\n📅 Tanggal: ${tx.transactionDate || "-"}\n🔢 Ref: \`${tx.transactionRef || "-"}\`\n💰 Nominal: ${tx.amount || "-"}`;
 
     if (isAutoAccepted) {
-      // JIKA COCOK: Otomatis ACC
       const batch = db.batch();
       batch.update(txRef, { status: "approved", approvedAt: admin.firestore.FieldValue.serverTimestamp(), autoApproved: true });
       batch.update(db.collection("users").doc(tx.uid), { role: "vip", status: "active" });
       await batch.commit();
 
       if (photoUrl) {
-        await sendTelegramPhoto({ chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n✅ *AUTO-ACCEPTED*\nTeks OCR cocok dengan form.`, parse_mode: "Markdown" });
+        await sendTelegramPhoto({ chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n✅ *AUTO-ACCEPTED*\nTeks OCR cocok.`, parse_mode: "Markdown" });
       } else {
-        await sendTelegram({ chat_id: TELEGRAM_DEV_CHAT_ID, text: baseMsg + `\n\n✅ *AUTO-ACCEPTED (Tanpa Foto)*`, parse_mode: "Markdown" });
+        await sendTelegram({ chat_id: TELEGRAM_DEV_CHAT_ID, text: baseMsg + `\n\n✅ *AUTO-ACCEPTED*`, parse_mode: "Markdown" });
       }
       return res.status(200).json({ ok: true, status: "auto_approved" });
       
     } else {
-      // JIKA GAGAL/RAGU: Kirim Manual ke Admin
       if (photoUrl) {
         await sendTelegramPhoto({ 
           chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n⚠️ *PERLU CEK MANUAL*\nAlasan: ${reason}`, parse_mode: "Markdown",
