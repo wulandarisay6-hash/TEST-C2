@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Developer Panel — SECTKUR</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+<div class="logo" style="font-size:1.1rem;margin-bottom:1rem;">SECTKUR</div>
+<nav class="sidebar-nav">
+<a href="/dev-dashboard" class="active">Users</a>
+<a href="/dev-dashboard" id="nav-tx">Transactions</a>
+<a href="#" id="nav-logout">Logout</a>
+</nav>
+</aside>
+<main class="main-content">
+<h1 style="margin-bottom:0.5rem;">Developer Panel</h1>
+<p class="text-dim mb-3" style="font-size:0.85rem;">Manajemen user &amp; transaksi</p>
+<div id="dev-error" class="form-error mb-2"></div>
+<h2 style="font-size:1.3rem;margin-bottom:0.5rem;">Users</h2>
+<div class="table-wrap">
+<table id="users-table">
+<thead><tr><th>Email</th><th>Username</th><th>appuid</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="users-tbody"><tr><td colspan="6" class="text-center text-dim">Memuat...</td></tr></tbody>
+</table>
+</div>
+<h2 style="font-size:1.3rem;margin-top:2rem;margin-bottom:0.5rem;">Transactions</h2>
+<div class="table-wrap">
+<table id="tx-table">
+<thead><tr><th>Tanggal</th><th>User</th><th>appuid</th><th>Nama QRIS</th><th>Ref</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="tx-tbody"><tr><td colspan="7" class="text-center text-dim">Memuat...</td></tr></tbody>
+</table>
+</div>
+<h2 style="font-size:1.3rem;margin-top:2rem;margin-bottom:0.5rem;">Telegram Bot Live Log</h2>
+<div class="terminal-log" id="telegram-log">
+<div class="log-line info"><span class="timestamp">[--:--:--]</span>Menunggu event...</div>
+</div>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/js/firebase-config.js"></script>
+<script type="module" src="/js/dev.js"></script>
+</body>
+</html>

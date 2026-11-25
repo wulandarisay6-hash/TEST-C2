@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masuk — SECTKUR</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="auth-wrap">
+<div class="auth-box">
+<h1 class="glitch">SECTKUR</h1>
+<p class="subtitle">Gerbang Akses Terkendali</p>
+<div class="auth-tabs">
+<button class="auth-tab active" data-tab="login">Masuk</button>
+<button class="auth-tab" data-tab="register">Daftar</button>
+</div>
+<div id="form-error" class="form-error"></div>
+<form id="login-form" class="auth-form">
+<div><label>Email</label><input type="email" name="email" required autocomplete="email"></div>
+<div><label>Password</label><input type="password" name="password" required autocomplete="current-password"></div>
+<button type="submit" class="btn-primary">Masuk</button>
+</form>
+<form id="register-form" class="auth-form hidden">
+<div><label>Username</label><input type="text" name="username" required minlength="3" autocomplete="username"></div>
+<div><label>Email</label><input type="email" name="email" required autocomplete="email"></div>
+<div><label>Password (min 6 karakter)</label><input type="password" name="password" required minlength="6" autocomplete="new-password"></div>
+<button type="submit" class="btn-primary">Daftar &amp; Mulai Trial</button>
+</form>
+<p class="text-center mt-3" style="font-size:0.75rem;color:var(--text-dim);">Dengan mendaftar, Anda mendapatkan free trial 1 jam penuh.</p>
+</div>
+</div>
+<script src="/js/firebase-config.js"></script>
+<script type="module" src="/js/auth.js"></script>
+</body>
+</html>
