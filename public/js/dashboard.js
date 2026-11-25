@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
@@ -57,10 +57,23 @@ onAuthStateChanged(auth, user => {
     if (snap.exists()) {
       renderDashboard(user, snap.data());
     } else {
-      // Kalau data user ga ada di database
-      $("appuid-value").textContent = "Data user tidak ditemukan. Silakan daftar ulang.";
-      $("appuid-value").classList.add("locked");
-      $("user-name").textContent = "User Tidak Dikenal";
+      // AUTO-HEAL: Kalau user login tapi data ga ada, bikin baru otomatis!
+      const trialExpires = new Date(Date.now() + 60 * 60 * 1000);
+      setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        username: user.email.split("@")[0],
+        role: "trial",
+        status: "active",
+        createdAt: serverTimestamp(),
+        trialExpiresAt: trialExpires
+      }).then(() => {
+        showToast("Profil akun berhasil dipulihkan otomatis!", "success");
+      }).catch(err => {
+        console.error("Auto-heal gagal:", err);
+        $("appuid-value").textContent = "Gagal membuat profil. Cek Firestore Rules.";
+        $("appuid-value").classList.add("locked");
+      });
     }
   }, err => {
     // Kalau Firestore nolak akses (Rules)
