@@ -1,7 +1,6 @@
 const admin = require("firebase-admin");
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_DEV_CHAT_ID = process.env.TELEGRAM_DEV_CHAT_ID;
-const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
 
 let _app;
 function getApp() {
@@ -19,18 +18,8 @@ async function tg(method, payload) {
   return res.json();
 }
 
-async function uploadToImgBB(buffer) {
-  const formData = new URLSearchParams();
-  formData.append("image", buffer.toString("base64"));
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body: formData });
-  const data = await res.json();
-  if (data.success) return data.data.display_url;
-  throw new Error("ImgBB upload failed");
-}
-
 module.exports = async (req, res) => {
   if (req.method === "GET") return res.status(200).json({ ok: true, message: "Webhook alive." });
-  
   try {
     const update = req.body || {};
     if (update.message) {
@@ -49,21 +38,33 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Handle FOTO (Simpen sebagai Base64)
     if (update.message && update.message.photo && String(update.message.chat.id) === String(TELEGRAM_DEV_CHAT_ID)) {
       const msg = update.message;
       await tg("sendMessage", { chat_id: msg.chat.id, text: "⏳ Memproses gambar QRIS..." });
+      
       const fileId = msg.photo[msg.photo.length - 1].file_id;
       const fileRes = await tg("getFile", { file_id: fileId });
       const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileRes.result.file_path}`;
-      const imgRes = await fetch(fileUrl);
-      const buffer = Buffer.from(await imgRes.arrayBuffer());
-      const hostedUrl = await uploadToImgBB(buffer);
       
-      await getDb().collection("settings").doc("qris").set({ imageUrl: hostedUrl, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-      await tg("sendMessage", { chat_id: msg.chat.id, text: `✅ *QRIS BERHASIL DI-SET!*\n\n[Lihat Gambar](${hostedUrl})`, parse_mode: "Markdown" });
+      const imgRes = await fetch(fileUrl);
+      const arrayBuffer = await imgRes.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64Img = buffer.toString('base64');
+
+      // Simpan format: data:image/jpeg;base64,xxxxx
+      const dataUri = `data:image/jpeg;base64,${base64Img}`;
+      
+      await getDb().collection("settings").doc("qris").set({ 
+        imageUrl: dataUri, 
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+      });
+      
+      await tg("sendMessage", { chat_id: msg.chat.id, text: `✅ *QRIS BERHASIL DI-SET!* (Mode Base64)` , parse_mode: "Markdown" });
       return res.status(200).json({ ok: true });
     }
 
+    // Handle CALLBACK (ACC/Tolak)
     const cb = update.callback_query;
     if (cb) {
       const [action, transactionId, uid] = (cb.data || "").split(":");

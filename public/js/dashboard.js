@@ -23,7 +23,7 @@ $("nav-logout").addEventListener("click", async e => { e.preventDefault(); await
 onSnapshot(doc(db, "settings", "qris"), snap => {
   if (snap.exists() && snap.data().imageUrl) {
     const url = snap.data().imageUrl;
-    $("qris-img-wrap").outerHTML = `<img src="${url}" alt="QRIS" style="max-width:100%;border-radius:4px;border:1px solid var(--border);" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMxNDE0MTQiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iI2RjMjYyNiIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UVJJUyBHYWdhbCBkaS1sb2FkPC90ZXh0Pjwvc3ZnPg=='">`;
+    $("qris-img-wrap").outerHTML = `<img src="${url}" alt="QRIS" style="max-width:100%;border-radius:4px;border:1px solid var(--border);">`;
   }
 });
 
