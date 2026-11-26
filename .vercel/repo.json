@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_Zfq08fbThADKcGNdRJEDzJq1jM2k",
+      "name": "test-c2-bot",
+      "directory": ".",
+      "orgId": "team_zIG10gA6yfVPfCIeoFAm61AY"
+    }
+  ]
+}
