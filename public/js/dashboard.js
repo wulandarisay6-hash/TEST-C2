@@ -19,27 +19,22 @@ function showToast(msg, type = "info") {
   setTimeout(() => t.className = "toast", 3000); 
 }
 
-// FITUR BIAR MODAL GA NUTUP PAS DI REFRESH
 function openQRIS() { 
   $("modal-qris").classList.add("active"); 
-  window.location.hash = "upgrade"; // Tambahin #upgrade di URL
+  window.location.hash = "upgrade";
 }
 function closeQRIS() { 
   $("modal-qris").classList.remove("active"); 
-  history.replaceState(null, null, window.location.pathname); // Hapus hash dari URL
+  history.replaceState(null, null, window.location.pathname); 
 }
 
-// Cek kalau URL ada #upgrade, langsung buka modal
-if (window.location.hash === "#upgrade") {
-  openQRIS();
-}
+if (window.location.hash === "#upgrade") { openQRIS(); }
 
 $("modal-close").addEventListener("click", closeQRIS);
 $("nav-upgrade").addEventListener("click", e => { e.preventDefault(); openQRIS(); });
 $("btn-upgrade-top").addEventListener("click", openQRIS);
 $("nav-logout").addEventListener("click", async e => { e.preventDefault(); await signOut(auth); window.location.href = "/login"; });
 
-// Load QRIS
 onSnapshot(doc(db, "settings", "qris"), snap => {
   if (snap.exists() && snap.data().imageUrl) {
     const url = snap.data().imageUrl;
@@ -48,7 +43,6 @@ onSnapshot(doc(db, "settings", "qris"), snap => {
   }
 });
 
-// LOAD DATA USER (Tambahin ERROR HANDLING biar ga "Memuat..." selamanya)
 onAuthStateChanged(auth, user => {
   if (!user) { window.location.href = "/login"; return; }
   if (unsubUser) unsubUser();
@@ -57,49 +51,41 @@ onAuthStateChanged(auth, user => {
     if (snap.exists()) {
       renderDashboard(user, snap.data());
     } else {
-      // AUTO-HEAL: Kalau user login tapi data ga ada, bikin baru otomatis!
       const trialExpires = new Date(Date.now() + 60 * 60 * 1000);
       setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        username: user.email.split("@")[0],
-        role: "trial",
-        status: "active",
-        createdAt: serverTimestamp(),
-        trialExpiresAt: trialExpires
-      }).then(() => {
-        showToast("Profil akun berhasil dipulihkan otomatis!", "success");
-      }).catch(err => {
-        console.error("Auto-heal gagal:", err);
-        $("appuid-value").textContent = "Gagal membuat profil. Cek Firestore Rules.";
-        $("appuid-value").classList.add("locked");
-      });
+        uid: user.uid, email: user.email, username: user.email.split("@")[0],
+        role: "trial", status: "active", createdAt: serverTimestamp(), trialExpiresAt: trialExpires
+      }).then(() => showToast("Profil dipulihkan otomatis!", "success"))
+        .catch(err => console.error("Auto-heal gagal:", err));
     }
   }, err => {
-    // Kalau Firestore nolak akses (Rules)
     console.error("Firestore Error:", err);
-    $("appuid-value").textContent = "Gagal load data (Cek Firestore Rules)";
+    $("appuid-value").textContent = "Gagal load data";
     $("appuid-value").classList.add("locked");
-    $("user-name").textContent = "Error Database";
-    showToast("Error: " + err.message, "error");
   });
 });
 
 function renderDashboard(user, data) {
   $("user-name").textContent = data.username || user.email;
-  const role = data.role || "trial";
+  let role = data.role || "trial";
   
+  if (role === "trial" && data.trialExpiresAt) {
+    const exp = data.trialExpiresAt.toDate ? data.trialExpiresAt.toDate() : new Date(data.trialExpiresAt);
+    if (Date.now() > exp.getTime()) role = "expired";
+  }
+
   $("banned-overlay").classList.toggle("active", data.status === "banned");
   if (data.status === "banned") return;
   
   $("nav-dev").classList.toggle("hidden", role !== "developer");
   $("role-display").innerHTML = `<span class="role-badge ${role}">${role.toUpperCase()}</span>`;
   
-  $("appuid-value").textContent = role === "expired" ? "APPUID DINONAKTIFKAN" : user.uid;
+  $("appuid-value").textContent = role === "expired" ? "APPUID DINONAKTIFKAN — Upgrade ke VIP" : user.uid;
   $("appuid-value").classList.toggle("locked", role === "expired");
   $("btn-copy-appuid").disabled = role === "expired";
 
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  
   if (role === "trial" && data.trialExpiresAt) {
     const expires = data.trialExpiresAt?.toDate ? data.trialExpiresAt.toDate() : new Date(data.trialExpiresAt);
     timerInterval = setInterval(() => {
@@ -107,7 +93,11 @@ function renderDashboard(user, data) {
       if (diff <= 0) { 
         $("timer-value").textContent = "00:00:00"; 
         $("trial-box").classList.add("expired");
-        setTimeout(() => location.reload(), 2000); 
+        document.querySelectorAll(".feature-btn").forEach(btn => btn.classList.add("locked"));
+        $("appuid-value").textContent = "APPUID DINONAKTIFKAN — Upgrade ke VIP";
+        $("appuid-value").classList.add("locked");
+        $("btn-copy-appuid").disabled = true;
+        $("role-display").innerHTML = `<span class="role-badge expired">EXPIRED</span>`;
       } else {
         const h = String(Math.floor(diff / 3600000)).padStart(2, "0");
         const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
@@ -120,11 +110,23 @@ function renderDashboard(user, data) {
     $("trial-box").classList.add("hidden"); 
   }
 
-  const isVIP = role === "vip" || role === "developer";
+  const isUnlocked = role === "trial" || role === "vip" || role === "developer";
   document.querySelectorAll(".feature-btn").forEach(btn => {
-    btn.classList.toggle("locked", !isVIP);
+    btn.classList.toggle("locked", !isUnlocked);
   });
 }
+
+
+document.querySelectorAll(".feature-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.classList.contains("locked")) {
+      showToast("Fitur terkunci. Upgrade ke VIP.", "error");
+    } else {
+      window.location.href = "/c2-panel";
+    }
+  });
+});
+
 
 $("btn-copy-appuid").addEventListener("click", async () => {
   try {
@@ -133,7 +135,7 @@ $("btn-copy-appuid").addEventListener("click", async () => {
   } catch { showToast("Gagal salin.", "error"); }
 });
 
-// SUBMIT FORM VIP (Upload gambar via API, biar OCR jalan)
+// SUBMIT FORM VIP (Hanya butuh Nama dan Foto)
 $("form-qris").addEventListener("submit", async e => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -149,11 +151,15 @@ $("form-qris").addEventListener("submit", async e => {
   submitBtn.disabled = true;
   
   try {
+    // Simpan transaksi tanpa tanggal & ref
     const ref = await addDoc(collection(db, "transactions"), {
-      uid: auth_user.uid, appuid: auth_user.uid, username: $("user-name").textContent,
-      senderName: fd.get("sender_name").trim(), transactionDate: fd.get("transaction_date"),
-      transactionRef: fd.get("transaction_ref").trim(), amount: "Rp 50.000",
-      status: "pending", createdAt: serverTimestamp()
+      uid: auth_user.uid, 
+      appuid: auth_user.uid, 
+      username: $("user-name").textContent,
+      senderName: fd.get("sender_name").trim(), 
+      amount: "Rp 50.000",
+      status: "pending", 
+      createdAt: serverTimestamp()
     });
 
     const base64Img = await new Promise(r => {
@@ -167,7 +173,7 @@ $("form-qris").addEventListener("submit", async e => {
     
     const imgbbRes = await fetch(`/api/upload-imgbb`, { method: "POST", body: formData });
     const imgbbData = await imgbbRes.json();
-    if (!imgbbData.url) throw new Error("Gagal upload gambar ke ImgBB");
+    if (!imgbbData.url) throw new Error("Gagal upload gambar");
     
     await fetch("/api/notify-telegram", {
       method: "POST",
@@ -176,7 +182,7 @@ $("form-qris").addEventListener("submit", async e => {
     });
 
     closeQRIS();
-    showToast("Konfirmasi terkirim. Cek Telegram bot.", "success");
+    showToast("Konfirmasi terkirim. Bot sedang mengecek gambar.", "success");
     e.target.reset();
   } catch (err) {
     console.error(err);

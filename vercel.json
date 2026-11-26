@@ -3,12 +3,37 @@
   "public": false,
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/public/index.html" },
-    { "source": "/login", "destination": "/public/login.html" },
-    { "source": "/dashboard", "destination": "/public/dashboard.html" },
-    { "source": "/dev-dashboard", "destination": "/public/dev-dashboard.html" },
-    { "source": "/css/(.*)", "destination": "/public/css/$1" },
-    { "source": "/js/(.*)", "destination": "/public/js/$1" },
-    { "source": "/assets/(.*)", "destination": "/public/assets/$1" }
+    {
+      "source": "/",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/public/login.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/public/dashboard.html"
+    },
+    {
+      "source": "/dev-dashboard",
+      "destination": "/public/dev-dashboard.html"
+    },
+    {
+      "source": "/css/(.*)",
+      "destination": "/public/css/$1"
+    },
+    {
+      "source": "/js/(.*)",
+      "destination": "/public/js/$1"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/public/assets/$1"
+    },
+    {
+      "source": "/c2-panel",
+      "destination": "/public/c2-panel.html"
+    }
   ]
 }

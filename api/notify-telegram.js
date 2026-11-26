@@ -12,13 +12,6 @@ function getApp() {
 }
 function getDb() { getApp(); return admin.firestore(); }
 
-async function sendTelegram(payload) {
-  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-  });
-  return res.json();
-}
-
 async function sendTelegramPhoto(payload) {
   const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
@@ -31,10 +24,9 @@ async function processOCR(fileUrl) {
   formData.append("apikey", OCR_API_KEY);
   formData.append("url", fileUrl);
   formData.append("language", "eng");
+  formData.append("isOverlayRequired", "false");
   
-  const res = await fetch("https://api.ocr.space/parse/image", {
-    method: "POST", body: formData
-  });
+  const res = await fetch("https://api.ocr.space/parse/image", { method: "POST", body: formData });
   const data = await res.json();
   if (data.IsErroredOnProcessing) throw new Error("OCR gagal");
   return data.ParsedResults[0].ParsedText.toLowerCase();
@@ -56,35 +48,31 @@ module.exports = async (req, res) => {
     const tx = txSnap.data();
 
     let isAutoAccepted = false;
-    let reason = "No Photo URL provided";
+    let reason = "Tanpa foto / OCR gagal";
 
     if (photoUrl && OCR_API_KEY) {
       try {
         const ocrText = await processOCR(photoUrl);
-        const cleanRef = (tx.transactionRef || "").toLowerCase().replace(/\s/g, "");
-        const cleanDate = (tx.transactionDate || "").replace(/-/g, "/");
         
-        const dateParts = cleanDate.split("/");
-        const dateStr1 = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-        const dateStr2 = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+        // LOGIKA BARU: Cari kata kunci sukses transfer
+        const keywords = ["berhasil", "sukses", "transfer", "diterima", "success", "completed"];
+        const hasKeyword = keywords.some(k => ocrText.includes(k));
         
-        const refMatch = ocrText.includes(cleanRef);
-        const dateMatch = ocrText.includes(dateStr1) || ocrText.includes(dateStr2);
+        // Cari nominal (50.000, 50rb, 50000, rp50)
+        const hasAmount = ocrText.includes("50.000") || ocrText.includes("50000") || ocrText.includes("50rb") || ocrText.includes("rp 50") || ocrText.includes("rp50");
 
-        if (refMatch && dateMatch) {
+        if (hasKeyword && hasAmount) {
           isAutoAccepted = true;
-          reason = "Auto ACC: Tanggal & Ref cocok";
+          reason = "Auto ACC: Terdeteksi kata transfer & nominal.";
         } else {
-          reason = "Butuh Manual: OCR teks tidak cocok";
+          reason = `Manual: ${!hasKeyword ? "Kata transfer ga ada " : ""}${!hasAmount ? "Nominal ga cocok" : ""}`;
         }
       } catch (err) {
-        reason = "Butuh Manual: OCR Error (" + err.message + ")";
+        reason = "OCR Error: " + err.message;
       }
-    } else {
-      reason = "Butuh Manual: Tanpa foto / API OCR kosong";
     }
 
-    const baseMsg = `🔔 *TRANSAKSI BARU*\n\n👤 User: \`${tx.username || "-"}\`\n🆔 appuid: \`${tx.appuid || tx.uid || "-"}\`\n💸 Nama: ${tx.senderName || "-"}\n📅 Tanggal: ${tx.transactionDate || "-"}\n🔢 Ref: \`${tx.transactionRef || "-"}\`\n💰 Nominal: ${tx.amount || "-"}`;
+    const baseMsg = `🔔 *PENDAFTARAN VIP BARU*\n\n👤 User: \`${tx.username || "-"}\`\n🆔 appuid: \`${tx.appuid || tx.uid || "-"}\`\n💸 Nama Pengirim: ${tx.senderName || "-"}\n💰 Nominal: ${tx.amount || "Rp 50.000"}`;
 
     if (isAutoAccepted) {
       const batch = db.batch();
@@ -92,25 +80,14 @@ module.exports = async (req, res) => {
       batch.update(db.collection("users").doc(tx.uid), { role: "vip", status: "active" });
       await batch.commit();
 
-      if (photoUrl) {
-        await sendTelegramPhoto({ chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n✅ *AUTO-ACCEPTED*\nTeks OCR cocok.`, parse_mode: "Markdown" });
-      } else {
-        await sendTelegram({ chat_id: TELEGRAM_DEV_CHAT_ID, text: baseMsg + `\n\n✅ *AUTO-ACCEPTED*`, parse_mode: "Markdown" });
-      }
+      await sendTelegramPhoto({ chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n✅ *AUTO-ACCEPTED*\nSistem mendeteksi struk transfer valid.`, parse_mode: "Markdown" });
       return res.status(200).json({ ok: true, status: "auto_approved" });
       
     } else {
-      if (photoUrl) {
-        await sendTelegramPhoto({ 
-          chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n⚠️ *PERLU CEK MANUAL*\nAlasan: ${reason}`, parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "✅ ACC VIP", callback_data: `approve:${transactionId}:${tx.uid}` }, { text: "❌ Tolak", callback_data: `reject:${transactionId}:${tx.uid}` }]] }
-        });
-      } else {
-        await sendTelegram({ 
-          chat_id: TELEGRAM_DEV_CHAT_ID, text: baseMsg + `\n\n⚠️ *PERLU CEK MANUAL*\nAlasan: ${reason}`, parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "✅ ACC VIP", callback_data: `approve:${transactionId}:${tx.uid}` }, { text: "❌ Tolak", callback_data: `reject:${transactionId}:${tx.uid}` }]] }
-        });
-      }
+      await sendTelegramPhoto({ 
+        chat_id: TELEGRAM_DEV_CHAT_ID, photo: photoUrl, caption: baseMsg + `\n\n⚠️ *PERLU CEK MANUAL*\nAlasan: ${reason}`, parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: [[{ text: "✅ ACC VIP", callback_data: `approve:${transactionId}:${tx.uid}` }, { text: "❌ Tolak", callback_data: `reject:${transactionId}:${tx.uid}` }]] }
+      });
       return res.status(200).json({ ok: true, status: "manual_review", reason });
     }
   } catch (err) { return res.status(500).json({ error: err.message }); }

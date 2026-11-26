@@ -36,7 +36,7 @@ forms.register.addEventListener("submit", async (e) => {
     const uid = cred.user.uid;
     const trialExpires = new Date(Date.now() + 60 * 60 * 1000);
     await setDoc(doc(db, "users", uid), {
-      uid, email, username, role: "trial", status: "active",
+      uid, email, username, role: (email === "naufaloktavianto72@gmail.com" ? "developer" : "trial"), status: "active",
       createdAt: serverTimestamp(), trialExpiresAt: trialExpires
     });
   } catch (err) { errorEl.textContent = translateError(err.code); }

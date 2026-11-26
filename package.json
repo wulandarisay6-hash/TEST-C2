@@ -3,7 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "description": "SECTKUR - Cyber-Occult C2 Panel",
-  "scripts": { "dev": "vercel dev", "deploy": "vercel deploy --prod" },
-  "dependencies": { "firebase-admin": "^12.7.0" },
-  "engines": { "node": "22.x" }
+  "scripts": {
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": {
+    "node": "22.x"
+  }
 }
