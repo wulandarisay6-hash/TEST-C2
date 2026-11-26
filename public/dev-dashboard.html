@@ -12,8 +12,8 @@
 <aside class="sidebar" id="sidebar">
 <div class="logo" style="font-size:1.1rem;margin-bottom:1rem;">SECTKUR</div>
 <nav class="sidebar-nav">
-<a href="/dev-dashboard" class="active">Users</a>
-<a href="/dev-dashboard" id="nav-tx">Transactions</a>
+<a href="#section-users" class="nav-link active">Users</a>
+<a href="#section-transactions" class="nav-link">Transactions</a>
 <a href="#" id="nav-logout">Logout</a>
 </nav>
 </aside>
@@ -21,20 +21,29 @@
 <h1 style="margin-bottom:0.5rem;">Developer Panel</h1>
 <p class="text-dim mb-3" style="font-size:0.85rem;">Manajemen user &amp; transaksi</p>
 <div id="dev-error" class="form-error mb-2"></div>
-<h2 style="font-size:1.3rem;margin-bottom:0.5rem;">Users</h2>
+
+<h2 id="section-users" style="font-size:1.3rem;margin-bottom:0.5rem;padding-top:10px;">Users</h2>
 <div class="table-wrap">
 <table id="users-table">
-<thead><tr><th>Email</th><th>Username</th><th>appuid</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+<thead><tr><th>Email</th><th>Username</th><th>IP Address</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
 <tbody id="users-tbody"><tr><td colspan="6" class="text-center text-dim">Memuat...</td></tr></tbody>
 </table>
 </div>
-<h2 style="font-size:1.3rem;margin-top:2rem;margin-bottom:0.5rem;">Transactions</h2>
+
+<h2 id="section-transactions" style="font-size:1.3rem;margin-top:2rem;margin-bottom:0.5rem;padding-top:10px;">Transactions</h2>
+<div class="flex gap-1 mb-2" style="flex-wrap:wrap;">
+  <button class="action-btn filter-btn active" data-filter="all" style="border-color:var(--text);color:var(--text);">All</button>
+  <button class="action-btn filter-btn gold" data-filter="approved" style="border-color:var(--gold);color:var(--gold);">Approved</button>
+  <button class="action-btn filter-btn danger" data-filter="rejected" style="border-color:var(--blood);color:var(--blood);">Rejected</button>
+  <button class="action-btn filter-btn" data-filter="pending" style="border-color:var(--text-dim);color:var(--text-dim);">Pending</button>
+</div>
 <div class="table-wrap">
 <table id="tx-table">
-<thead><tr><th>Tanggal</th><th>User</th><th>appuid</th><th>Nama QRIS</th><th>Ref</th><th>Status</th><th>Actions</th></tr></thead>
-<tbody id="tx-tbody"><tr><td colspan="7" class="text-center text-dim">Memuat...</td></tr></tbody>
+<thead><tr><th>Tanggal</th><th>User</th><th>Nama</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="tx-tbody"><tr><td colspan="5" class="text-center text-dim">Memuat...</td></tr></tbody>
 </table>
 </div>
+
 <h2 style="font-size:1.3rem;margin-top:2rem;margin-bottom:0.5rem;">Telegram Bot Live Log</h2>
 <div class="terminal-log" id="telegram-log">
 <div class="log-line info"><span class="timestamp">[--:--:--]</span>Menunggu event...</div>
@@ -43,6 +52,8 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="/js/firebase-config.js"></script>
-<script type="module" src="/js/dev.js"></script>
+<script src="/js/loader.js"></script>
+<script src="/js/loader.js"></script>
+<script type="module" src="/js/dev.js?v=6"></script>
 </body>
 </html>

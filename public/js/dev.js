@@ -1,15 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
 const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const $ = id => document.getElementById(id);
-let currentUser = null;
+let allTransactions = []; // Simpan data biar bisa difilter
+let currentFilter = "all";
+
 function showToast(msg, type = "info") {
-  const t = $("toast");
-  t.textContent = msg;
-  t.className = "toast show " + type;
+  const t = $("toast"); t.textContent = msg; t.className = "toast show " + type;
   setTimeout(() => t.className = "toast", 3000);
 }
 function logLine(msg, type = "info") {
@@ -18,11 +19,24 @@ function logLine(msg, type = "info") {
   const div = document.createElement("div");
   div.className = "log-line " + type;
   div.innerHTML = `<span class="timestamp">[${now}]</span>${msg}`;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+  log.appendChild(div); log.scrollTop = log.scrollHeight;
 }
-$("sidebar-toggle").addEventListener("click", () => $("sidebar").classList.toggle("collapsed"));
+
+// Sidebar
+document.getElementById("sidebar-toggle").addEventListener("click", () => {
+  const sidebar = document.getElementById("sidebar");
+  if (window.innerWidth <= 768) { sidebar.classList.toggle("open"); } 
+  else { sidebar.classList.toggle("collapsed"); }
+});
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 768) document.getElementById("sidebar").classList.remove("open");
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+  });
+});
 $("nav-logout").addEventListener("click", async e => { e.preventDefault(); await signOut(auth); window.location.href = "/login"; });
+
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = "/login"; return; }
   const snap = await getDoc(doc(db, "users", user.uid));
@@ -31,115 +45,132 @@ onAuthStateChanged(auth, async user => {
     setTimeout(() => window.location.href = "/dashboard", 2000);
     return;
   }
-  currentUser = user;
   logLine("Developer panel loaded. Auth OK.", "success");
-  loadUsers();
-  loadTransactions();
-  loadTelegramStatus();
+  loadUsers(); loadTransactions();
 });
+
+// === USERS (DENGAN IP BANNED) ===
 function loadUsers() {
   onSnapshot(collection(db, "users"), snap => {
     const tbody = $("users-tbody");
     if (snap.empty) { tbody.innerHTML = `<tr><td colspan="6" class="text-center text-dim">Belum ada user.</td></tr>`; return; }
     tbody.innerHTML = "";
     snap.forEach(d => {
-      const u = d.data();
-      const id = d.id;
-      const role = u.role || "trial";
+      const u = d.data(); const id = d.id;
+      const role = u.role || "trial"; 
       const status = u.status || "active";
+      const ip = u.lastIp || "-";
+      
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${u.email || "-"}</td>
         <td>${u.username || "-"}</td>
-        <td style="font-family:monospace;font-size:0.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${id}">${id.slice(0,8)}...${id.slice(-4)}</td>
+        <td style="font-family:monospace;">${ip}</td>
         <td><span class="role-badge ${role}">${role.toUpperCase()}</span></td>
         <td>${status === "banned" ? '<span class="role-badge banned">BANNED</span>' : 'ACTIVE'}</td>
         <td>
           <button class="action-btn gold" data-action="vip" data-id="${id}">${role === "vip" ? "Cabut VIP" : "Set VIP"}</button>
           <button class="action-btn danger" data-action="ban" data-id="${id}">${status === "banned" ? "Unban" : "Ban"}</button>
+          ${ip !== "-" ? `<button class="action-btn danger" data-action="ban_ip" data-ip="${ip}">Ban IP</button>` : ""}
           <button class="action-btn danger" data-action="delete" data-id="${id}">Hapus</button>
         </td>`;
       tbody.appendChild(tr);
     });
     tbody.querySelectorAll("button[data-action]").forEach(btn => {
-      btn.addEventListener("click", () => handleUserAction(btn.dataset.action, btn.dataset.id));
+      btn.addEventListener("click", (e) => handleUserAction(e.target.dataset.action, e.target.dataset.id, e.target.dataset.ip, e.target));
     });
   });
 }
-async function handleUserAction(action, id) {
-  const ref = doc(db, "users", id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-  const u = snap.data();
+
+async function handleUserAction(action, id, ip, btnElement) {
+  const originalText = btnElement.textContent;
+  btnElement.textContent = "..."; btnElement.disabled = true;
+  
   try {
-    if (action === "vip") {
-      if (u.role === "vip") {
-        await updateDoc(ref, { role: "expired" });
-        logLine(`Cabut VIP: ${u.email}`, "warn");
-        showToast("VIP dicabut.", "info");
-      } else {
-        await updateDoc(ref, { role: "vip", status: "active" });
-        logLine(`Set VIP: ${u.email}`, "success");
-        showToast("User di-set VIP.", "success");
+    if (action === "ban_ip") {
+      if (!confirm(`Ban IP ${ip}? Semua akun dari IP ini ga akan bisa login/daftar.`)) {
+        btnElement.textContent = originalText; btnElement.disabled = false; return;
       }
-    } else if (action === "ban") {
-      await updateDoc(ref, { status: u.status === "banned" ? "active" : "banned" });
-      logLine(`${u.status === "banned" ? "Unban" : "Ban"}: ${u.email}`, "error");
-      showToast("Status updated.", "info");
-    } else if (action === "delete") {
-      if (!confirm("Hapus user permanen? Tindakan tidak bisa dibatalkan.")) return;
-      await deleteDoc(ref);
-      logLine(`HAPUS USER: ${u.email}`, "error");
-      showToast("User dihapus.", "info");
+      await setDoc(doc(db, "banned_ips", ip), { ip: ip, bannedAt: serverTimestamp() });
+      logLine(`BANNED IP: ${ip}`, "error"); showToast("IP berhasil di-ban.", "success");
+    } else {
+      const ref = doc(db, "users", id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+      const u = snap.data();
+      
+      if (action === "vip") {
+        await updateDoc(ref, { role: u.role === "vip" ? "expired" : "vip", status: "active" });
+      } else if (action === "ban") {
+        await updateDoc(ref, { status: u.status === "banned" ? "active" : "banned" });
+      } else if (action === "delete") {
+        if (!confirm("Hapus user permanen?")) { btnElement.textContent = originalText; btnElement.disabled = false; return; }
+        await deleteDoc(ref);
+      }
+      logLine(`Action ${action}: ${u.email}`, "info");
     }
   } catch (err) { console.error(err); showToast("Gagal: " + err.message, "error"); }
+  finally { btnElement.textContent = originalText; btnElement.disabled = false; }
 }
+
+// === TRANSACTIONS (DENGAN FILTER) ===
 function loadTransactions() {
   const q = query(collection(db, "transactions"), orderBy("createdAt", "desc"));
   onSnapshot(q, snap => {
-    const tbody = $("tx-tbody");
-    if (snap.empty) { tbody.innerHTML = `<tr><td colspan="7" class="text-center text-dim">Belum ada transaksi.</td></tr>`; return; }
-    tbody.innerHTML = "";
-    snap.forEach(d => {
-      const tx = d.data();
-      const id = d.id;
-      const date = tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleString("id-ID") : "-";
-      const status = tx.status || "pending";
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${date}</td>
-        <td>${tx.username || "-"}</td>
-        <td style="font-family:monospace;font-size:0.7rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${(tx.appuid || tx.uid || "-").slice(0,10)}...</td>
-        <td>${tx.senderName || "-"}</td>
-        <td>${tx.transactionRef || "-"}</td>
-        <td><span class="role-badge ${status === "approved" ? "vip" : status === "rejected" ? "banned" : "trial"}">${status.toUpperCase()}</span></td>
-        <td>
-          ${status === "pending" ? `<button class="action-btn gold" data-tx="approve" data-id="${id}" data-uid="${tx.uid}">ACC</button><button class="action-btn danger" data-tx="reject" data-id="${id}">Tolak</button>` : "-"}
-        </td>`;
-      tbody.appendChild(tr);
-    });
-    tbody.querySelectorAll("button[data-tx]").forEach(btn => {
-      btn.addEventListener("click", () => handleTx(btn.dataset.tx, btn.dataset.id, btn.dataset.uid));
-    });
+    allTransactions = [];
+    snap.forEach(d => { allTransactions.push({ id: d.id, ...d.data() }); });
+    renderTransactions();
   });
 }
-async function handleTx(action, id, uid) {
+
+function renderTransactions() {
+  const tbody = $("tx-tbody");
+  const filtered = currentFilter === "all" ? allTransactions : allTransactions.filter(tx => (tx.status || "pending") === currentFilter);
+  
+  if (filtered.length === 0) { 
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-dim">Tidak ada data untuk filter ini.</td></tr>`; 
+    return; 
+  }
+  tbody.innerHTML = "";
+  filtered.forEach(tx => {
+    const date = tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleString("id-ID") : "-";
+    const status = tx.status || "pending";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${date}</td>
+      <td>${tx.username || "-"}</td>
+      <td>${tx.senderName || "-"}</td>
+      <td><span class="role-badge ${status === "approved" ? "vip" : status === "rejected" ? "banned" : "trial"}">${status.toUpperCase()}</span></td>
+      <td>${status === "pending" ? `<button class="action-btn gold" data-tx="approve" data-id="${tx.id}" data-uid="${tx.uid}">ACC</button><button class="action-btn danger" data-tx="reject" data-id="${tx.id}">Tolak</button>` : "-"}</td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("button[data-tx]").forEach(btn => {
+    btn.addEventListener("click", (e) => handleTx(e.target.dataset.tx, e.target.dataset.id, e.target.dataset.uid, e.target));
+  });
+}
+
+// Event Listener buat tombol Filter
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    renderTransactions();
+  });
+});
+
+async function handleTx(action, id, uid, btnElement) {
+  const originalText = btnElement.textContent;
+  btnElement.textContent = "..."; btnElement.disabled = true;
   try {
     if (action === "approve") {
       await updateDoc(doc(db, "transactions", id), { status: "approved", approvedAt: serverTimestamp() });
       if (uid) await updateDoc(doc(db, "users", uid), { role: "vip", status: "active" });
-      logLine(`ACC VIP via dashboard: tx ${id}`, "success");
-      showToast("ACC VIP berhasil.", "success");
+      logLine(`ACC VIP: ${id}`, "success"); showToast("ACC berhasil.", "success");
     } else {
       await updateDoc(doc(db, "transactions", id), { status: "rejected", rejectedAt: serverTimestamp() });
-      logLine(`TOLAK transaksi ${id}`, "warn");
-      showToast("Transaksi ditolak.", "info");
+      logLine(`TOLAK: ${id}`, "warn"); showToast("Ditolak.", "info");
     }
   } catch (err) { showToast("Gagal: " + err.message, "error"); }
-}
-function loadTelegramStatus() {
-  fetch("/api/telegram-webhook").then(r => {
-    if (r.ok) logLine("Webhook endpoint reachable.", "success");
-    else logLine("Webhook endpoint error " + r.status, "error");
-  }).catch(e => logLine("Webhook unreachable: " + e.message, "error"));
+  finally { btnElement.textContent = originalText; btnElement.disabled = false; }
 }

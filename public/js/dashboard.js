@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
@@ -9,24 +9,16 @@ let unsubUser = null, timerInterval = null;
 const $ = id => document.getElementById(id);
 
 document.getElementById("sidebar-toggle").addEventListener("click", () => {
-  document.getElementById("sidebar").classList.toggle("collapsed");
+  const sidebar = document.getElementById("sidebar");
+  if (window.innerWidth <= 768) { sidebar.classList.toggle("open"); } 
+  else { sidebar.classList.toggle("collapsed"); }
 });
 
 function showToast(msg, type = "info") { 
-  const t = $("toast"); 
-  t.textContent = msg; 
-  t.className = "toast show " + type; 
-  setTimeout(() => t.className = "toast", 3000); 
+  const t = $("toast"); t.textContent = msg; t.className = "toast show " + type; setTimeout(() => t.className = "toast", 3000); 
 }
-
-function openQRIS() { 
-  $("modal-qris").classList.add("active"); 
-  window.location.hash = "upgrade";
-}
-function closeQRIS() { 
-  $("modal-qris").classList.remove("active"); 
-  history.replaceState(null, null, window.location.pathname); 
-}
+function openQRIS() { $("modal-qris").classList.add("active"); window.location.hash = "upgrade"; }
+function closeQRIS() { $("modal-qris").classList.remove("active"); history.replaceState(null, null, window.location.pathname); }
 
 if (window.location.hash === "#upgrade") { openQRIS(); }
 
@@ -43,6 +35,18 @@ onSnapshot(doc(db, "settings", "qris"), snap => {
   }
 });
 
+// Cek IP Banned
+fetch("https://api.ipify.org?format=json").then(r => r.json()).then(async (data) => {
+  if(data.ip) {
+      const ipSnap = await getDoc(doc(db, "banned_ips", data.ip));
+      if (ipSnap.exists()) {
+        document.body.innerHTML = "<div style='height:100vh;display:flex;align-items:center;justify-content:center;background:black;color:red;font-family:monospace;text-align:center;padding:2rem;'><h1>AKSES DITOLAK<br><br>IP ADDRESS ANDA TELAH DIBLOKIR PERMANEN.</h1></div>";
+      }
+  }
+});
+
+showLoader("MENGHUBUNGKAN KE DATABASE...");
+showLoader("MENGHUBUNGKAN KE DATABASE...");
 onAuthStateChanged(auth, user => {
   if (!user) { window.location.href = "/login"; return; }
   if (unsubUser) unsubUser();
@@ -55,17 +59,14 @@ onAuthStateChanged(auth, user => {
       setDoc(doc(db, "users", user.uid), {
         uid: user.uid, email: user.email, username: user.email.split("@")[0],
         role: "trial", status: "active", createdAt: serverTimestamp(), trialExpiresAt: trialExpires
-      }).then(() => showToast("Profil dipulihkan otomatis!", "success"))
-        .catch(err => console.error("Auto-heal gagal:", err));
+      }).then(() => showToast("Profil dipulihkan otomatis!", "success"));
     }
-  }, err => {
-    console.error("Firestore Error:", err);
-    $("appuid-value").textContent = "Gagal load data";
-    $("appuid-value").classList.add("locked");
   });
 });
 
 function renderDashboard(user, data) {
+  hideLoader();
+  hideLoader();
   $("user-name").textContent = data.username || user.email;
   let role = data.role || "trial";
   
@@ -93,7 +94,7 @@ function renderDashboard(user, data) {
       if (diff <= 0) { 
         $("timer-value").textContent = "00:00:00"; 
         $("trial-box").classList.add("expired");
-        document.querySelectorAll(".feature-btn").forEach(btn => btn.classList.add("locked"));
+        updateFeatureButtons("expired");
         $("appuid-value").textContent = "APPUID DINONAKTIFKAN — Upgrade ke VIP";
         $("appuid-value").classList.add("locked");
         $("btn-copy-appuid").disabled = true;
@@ -109,33 +110,63 @@ function renderDashboard(user, data) {
   } else { 
     $("trial-box").classList.add("hidden"); 
   }
+  updateFeatureButtons(role);
+}
 
+function updateFeatureButtons(role) {
   const isUnlocked = role === "trial" || role === "vip" || role === "developer";
   document.querySelectorAll(".feature-btn").forEach(btn => {
-    btn.classList.toggle("locked", !isUnlocked);
+    if (isUnlocked) {
+      btn.classList.remove("locked");
+      const icon = btn.querySelector(".lock-icon");
+      if (icon) icon.textContent = "▶";
+    } else {
+      btn.classList.add("locked");
+      const icon = btn.querySelector(".lock-icon");
+      if (icon) icon.textContent = "🔒";
+    }
   });
 }
 
-
 document.querySelectorAll(".feature-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    if (btn.classList.contains("locked")) {
-      showToast("Fitur terkunci. Upgrade ke VIP.", "error");
-    } else {
-      window.location.href = "/c2-panel";
-    }
+    if (btn.classList.contains("locked")) showToast("Fitur terkunci. Upgrade ke VIP.", "error");
+    else window.location.href = "/c2-panel";
   });
 });
 
-
 $("btn-copy-appuid").addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText($("appuid-value").textContent);
-    showToast("appuid disalin!", "success");
-  } catch { showToast("Gagal salin.", "error"); }
+  try { await navigator.clipboard.writeText($("appuid-value").textContent); showToast("appuid disalin!", "success"); } 
+  catch { showToast("Gagal salin.", "error"); }
 });
 
-// SUBMIT FORM VIP (Hanya butuh Nama dan Foto)
+// === FUNGSI KOMPRESI GAMBAR (ANTI LIMIT 4.5MB VERCEL) ===
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800; // Kecilin resolusi
+        const scale = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Kompres ke JPEG kualitas 70%
+        const base64 = canvas.toDataURL("image/jpeg", 0.7).split(',')[1];
+        resolve(base64);
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+}
+
+// SUBMIT FORM VIP
 $("form-qris").addEventListener("submit", async e => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -147,47 +178,47 @@ $("form-qris").addEventListener("submit", async e => {
   if (!file || file.size === 0) { showToast("Upload bukti transfer!", "error"); return; }
 
   const originalText = submitBtn.textContent;
-  submitBtn.textContent = "MEMPROSES BUKTI...";
+  submitBtn.textContent = "MEMPROSES...";
   submitBtn.disabled = true;
+  showLoader("MENGIRIM BUKTI & AUTO-VERIFIKASI...");
   
   try {
-    // Simpan transaksi tanpa tanggal & ref
+    // 1. Kompres gambar dulu
+    const base64Img = await compressImage(file);
+    
+    // 2. Simpan transaksi ke Firestore
     const ref = await addDoc(collection(db, "transactions"), {
-      uid: auth_user.uid, 
-      appuid: auth_user.uid, 
-      username: $("user-name").textContent,
-      senderName: fd.get("sender_name").trim(), 
-      amount: "Rp 50.000",
-      status: "pending", 
-      createdAt: serverTimestamp()
+      uid: auth_user.uid, appuid: auth_user.uid, username: $("user-name").textContent,
+      senderName: fd.get("sender_name").trim(), amount: "Rp 50.000",
+      status: "pending", createdAt: serverTimestamp()
     });
 
-    const base64Img = await new Promise(r => {
-      const reader = new FileReader();
-      reader.onload = () => r(reader.result.split(',')[1]);
-      reader.readAsDataURL(file);
-    });
-    
+    // 3. Upload gambar (yang udah dikompres) ke ImgBB via API
     const formData = new URLSearchParams();
     formData.append("image", base64Img);
     
     const imgbbRes = await fetch(`/api/upload-imgbb`, { method: "POST", body: formData });
     const imgbbData = await imgbbRes.json();
-    if (!imgbbData.url) throw new Error("Gagal upload gambar");
+    if (!imgbbData.url) throw new Error("Gagal upload gambar ke ImgBB");
     
+    // 4. Kirim ke OCR Telegram API
     await fetch("/api/notify-telegram", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transactionId: ref.id, photoUrl: imgbbData.url })
     });
 
+    hideLoader();
+    hideLoader();
     closeQRIS();
-    showToast("Konfirmasi terkirim. Bot sedang mengecek gambar.", "success");
+    showToast("Konfirmasi terkirim. Cek Telegram bot.", "success");
     e.target.reset();
   } catch (err) {
+    hideLoader();
     console.error(err);
     showToast("Gagal: " + err.message, "error");
   } finally {
+    hideLoader();
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
   }
